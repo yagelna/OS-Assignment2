@@ -17,9 +17,6 @@ struct proc *initproc;
 int nextpid = 1;
 struct spinlock pid_lock;
 
-//int nextcid = 1;
-//struct spinlock cid_lock;
-
 extern void forkret(void);
 static void freeproc(struct proc *p);
 
@@ -692,37 +689,6 @@ procdump(void)
   }
 }
 
-/*
-int
-alloccid()
-{
-  int cid;
-  
-  acquire(&cid_lock);
-  cid = nextcid;
-  nextcid = nextcid + 1;
-  release(&cid_lock);
-
-  return cid;
-}
-
-int
-channel_create()
-{
-  struct channel *c;
-  for(c = channel; c < &channel[NPROC]; c++) {
-      acquire(&c->lock);
-      if(c->state == UNUSED1) {
-          c->cid = alloccid();
-          c->state = USED1;
-          c->parent = myproc();
-            return c->cid;
-      } else {
-        release(&c->lock);
-      }
-    }
-    return -1;
-}*/
 
 void
 init_channels(void) {
@@ -772,9 +738,8 @@ int channel_put(int cd, int data) {
   }
   c->data = data;
   c->state = CHAN_FULL;
-  wakeup(c);
   release(&c->lock);
-  printf("put_success\n");
+  wakeup(c);
   return 0;
 }
 
@@ -796,31 +761,27 @@ int channel_take(int cd, int* data) {
   }
   copyout(p->pagetable, (uint64)data, (char *)&c->data, sizeof(c->data));
   c->state = CHAN_EMPTY;
-  wakeup(c);
   release(&c->lock);
-  printf("take_success\n");
+  wakeup(c);
   return 0;
 }
 
 int channel_destroy(int cd) {
-  printf("destroy_1\n");
+
   if(cd < 0 || cd >= NCHAN) {
     return -1;
   }
 
   struct channel *c = &channels[cd];
   acquire(&c->lock);
-  printf("destroy_2\n");
   if (c->state == CHAN_UNUSED) {
-    printf("destroy_3\n");
     release(&c->lock);
     return -1; // channel doesnt exist/destroyed
   }
-  printf("destroy_4\n");
   c->state = CHAN_UNUSED;
-  wakeup(c);
   release(&c->lock);
-  printf("channel %d destroyed!",cd);
+  wakeup(c);
+  
   return 0;
 }
 
