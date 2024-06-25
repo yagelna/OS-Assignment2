@@ -698,7 +698,6 @@ init_channels(void) {
   for(c = channels; c < &channels[NCHAN]; c++, id++) {
     c->id = id;
     c->data = 0;
-    c->data_available = 0;
     initlock(&c->lock, "chan");
     c->creator = 0;
     c->state = CHAN_UNUSED;
@@ -728,14 +727,16 @@ int channel_put(int cd, int data) {
   }
   struct channel *c = &channels[cd];
   acquire(&c->lock);
+
+  while(c->state == CHAN_FULL) {
+    sleep(c, &c->lock);
+  }
+
   if (c->state == CHAN_UNUSED) {
     release(&c->lock);
     return -1; // channel doesnt exist/destroyed
   }
 
-  while(c->state == CHAN_FULL) {
-    sleep(c, &c->lock);
-  }
   c->data = data;
   c->state = CHAN_FULL;
   release(&c->lock);
@@ -751,14 +752,16 @@ int channel_take(int cd, int* data) {
   struct channel *c = &channels[cd];
   
   acquire(&c->lock);
-  if (c->state == CHAN_UNUSED) {
-    release(&c->lock);
-    return -1; // channel doesnt exist/destroyed
-  }
   
   while(c->state == CHAN_EMPTY ) {
     sleep(c, &c->lock);
   }
+
+  if (c->state == CHAN_UNUSED) {
+    release(&c->lock);
+    return -1; // channel doesnt exist/destroyed
+  }
+
   copyout(p->pagetable, (uint64)data, (char *)&c->data, sizeof(c->data));
   c->state = CHAN_EMPTY;
   release(&c->lock);

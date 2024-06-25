@@ -110,7 +110,6 @@ struct proc {
 struct channel {
   int id;                  // Unique identifier for the channel
   int data;                // Data being communicated through the channel
-  int data_available;      // Flag indicating if data is available
   enum chanstate state;        // Process state
   struct spinlock lock;    // Lock for synchronizing access to the channel
   struct proc *creator;    // Process that created the channel
